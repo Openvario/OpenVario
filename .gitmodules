@@ -16,3 +16,6 @@
 [submodule "meta-rauc"]
 	path = meta-rauc
 	url = git@github.com:rauc/meta-rauc.git
+[submodule "meta-openvario"]
+	path = meta-openvario
+	url = https://github.com/Openvario/meta-openvario.git
