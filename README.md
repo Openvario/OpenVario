@@ -2,6 +2,14 @@
 
 This is repository to build the Software Image for Openvario Flight Computer
 
+## Issues and discussion
+
+As this repository just represents the build system of the image, the issue reporting and discussions related to the **meta-openvario** layer shall still take in the correspoding repo.
+
+[Issues](https://github.com/Openvario/meta-openvario/issues)
+
+[Dicussions](https://github.com/Openvario/meta-openvario/discussions)
+
 ## How to build an image
 
 ### Prerequisites
