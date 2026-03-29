@@ -15,7 +15,7 @@
 	url = https://github.com/linux-sunxi/meta-sunxi.git
 [submodule "meta-rauc"]
 	path = meta-rauc
-	url = git@github.com:rauc/meta-rauc.git
+	url = https://github.com/rauc/meta-rauc.git
 [submodule "meta-openvario"]
 	path = meta-openvario
 	url = https://github.com/Openvario/meta-openvario.git
