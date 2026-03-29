@@ -28,7 +28,7 @@ This will fetch the sources including all submodules.
 
 ### Starting the containerd build environment
 ```
-docker run -it --rm -v $(pwd):/workdir ghcr.io/openvario/ovbuild-container:main --workdir=/workdir
+docker run -it --rm -v $(pwd):/workdir ghcr.io/openvario/ovbuild-container:latest --workdir=/workdir
 ```
 
 ### Configuring the build (only necessary once after fetching the repos)
