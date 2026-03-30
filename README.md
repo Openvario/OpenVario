@@ -40,7 +40,7 @@ source openembedded-core/oe-init-build-env .
 ### Setting the machine
 
 ```
-export MACHINE=openvario-7-CH070
+export MACHINE=ov-cb2-ch70
 ```
 
 ### Available machines for the OpenVario 
@@ -49,24 +49,23 @@ export MACHINE=openvario-7-CH070
     Cubieboard 2 and the original adapter board
     ===========================================
 
-    ov-cb2-43-rgb
-    ov-cb2-57-lvds
-    ov-cb2-7-ch070
-    ov-cb2-7-pq070
+    ov-cb2-am43
+    ov-cb2-ch57
+    ov-cb2-ch70
+    ov-cb2-pq70
   
     Cubieboard 2 and the adapter board DS2
     ======================================
 
-    ov-cb2-57-lvds-ds2
-    ov-cb2-7-am070-ds2
-    ov-cb2-7-ch070-ds2
-    ov-cb2-7-pq070-ds2
+    ov-cb2-am70s
+    ov-cb2-ch57s
+    ov-cb2-ch70s
 
     Raspberry Pi CM4 (testing status)
     =================================
     
-    ov-cm4-7-pq070
-    ov-cm4-57-lvds
+    ov-cm4-ch57
+    ov-cm4-pq70
 
     ov-rpi4 (developemt only)
     ov-rpi4-64 (development only)
