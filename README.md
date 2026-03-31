@@ -75,3 +75,5 @@ export MACHINE=ov-cb2-ch70
 ```
 bitbake openvario-image
 ```
+
+If the build fails, try checking out the `scarthgap` branch in `meta-openvario`, as it may resolve the issue. If the problem persists, please open an issue so we can investigate it.
