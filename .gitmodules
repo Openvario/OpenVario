@@ -18,7 +18,7 @@
 	url = https://github.com/rauc/meta-rauc.git
 [submodule "meta-openvario"]
 	path = meta-openvario
-	url = https://github.com/OpenVario/meta-openvario.git
+	url = https://github.com/Blaubart/meta-openvario.git
 [submodule "openembedded-core"]
 	path = openembedded-core
 	url = https://github.com/openembedded/openembedded-core.git
