@@ -1,15 +1,15 @@
 [submodule "bitbake"]
 	path = bitbake
-	url = https://github.com/openembedded/bitbake.git
+	url = https://git.openembedded.org/bitbake
 [submodule "meta-arm"]
 	path = meta-arm
 	url = https://git.yoctoproject.org/meta-arm
 [submodule "meta-openembedded"]
 	path = meta-openembedded
-	url = https://github.com/openembedded/meta-openembedded.git
+	url = https://git.openembedded.org/meta-openembedded.git
 [submodule "meta-raspberrypi"]
 	path = meta-raspberrypi
-	url = https://github.com/agherzan/meta-raspberrypi.git
+	url = https://git.yoctoproject.org/meta-raspberrypi
 [submodule "meta-sunxi"]
 	path = meta-sunxi
 	url = https://github.com/linux-sunxi/meta-sunxi.git
@@ -21,4 +21,4 @@
 	url = https://github.com/OpenVario/meta-openvario.git
 [submodule "openembedded-core"]
 	path = openembedded-core
-	url = https://github.com/openembedded/openembedded-core.git
+	url = https://git.openembedded.org/openembedded-core
