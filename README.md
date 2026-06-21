@@ -31,7 +31,7 @@ This will fetch the sources including all submodules.
 docker run -it --rm -v $(pwd):/workdir ghcr.io/openvario/ovbuild-container:latest --workdir=/workdir
 ```
 
-### Configuring the build (only necessary once after fetching the repos)
+### Configuring the build inside the docker container (only necessary once after fetching the repos)
 
 ```
 source openembedded-core/oe-init-build-env .
@@ -76,4 +76,12 @@ export MACHINE=ov-cb2-ch70
 bitbake openvario-image
 ```
 
-If the build fails, try checking out the `scarthgap` branch in `meta-openvario`, as it may resolve the issue. If the problem persists, please open an issue so we can investigate it.
+### Build errors, development branches and upstream dependency changes
+We are currently working on updating the commit references used for the stable OpenVario releases to ensure reproducible builds and long‑term maintainability.
+
+For development purposes, please use the `scarthgap` branch of meta-openvario, as it contains the most up‑to‑date fixes and improvements.
+
+Please note that some parts of the build — especially the testing image — track upstream development branches. These components may introduce new dependencies, change existing ones, or cause incompatibilities at any time, which can lead to unexpected build failures.
+
+If the build fails, try checking out the `scarthgap` branch in meta-openvario, as it may resolve the issue.
+If the problem persists, please open an issue in [Openvario/meta-openvario](https://github.com/Openvario/meta-openvario/issues) so we can investigate it.
