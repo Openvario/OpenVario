@@ -1,0 +1,16 @@
+name: Bug Report
+description: Report a problem with the OpenVario build system or repository setup
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not report issues related to the meta-openvario layer in this repository. Those issues should be opened in the [Openvario/meta-openvario](https://github.com/Openvario/meta-openvario/issues) repository instead.
+  - type: input
+    id: contact
+    attributes:
+      label: Describe your issue
+      description: Thank you for helping improve OpenVario. Please provide as much detail as possible so the issue can be triaged quickly.
+      placeholder:
+    validations:
+      required: true
