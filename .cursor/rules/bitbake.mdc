@@ -1,0 +1,23 @@
+---
+description: Recipe and machine conventions in the meta-openvario layer
+globs: meta-openvario/**/*.bb,meta-openvario/**/*.bbappend,meta-openvario/**/*.inc,meta-openvario/**/*.bbclass,meta-openvario/**/*.conf
+alwaysApply: false
+---
+
+# meta-openvario recipes
+
+- Add OpenVario recipes under `meta-openvario/recipes-*`. The layer
+  collects `recipes-*/*/*.bb` and `*.bbappend` (`conf/layer.conf`).
+- Pin a git app with `SRCREV` in the versioned recipe, and keep the
+  shared steps in the existing `.inc`. XCSoar is `recipes-apps/xcsoar/`.
+- Prefer a `bbappend` over a copy of an upstream recipe.
+- `do_install` runs under fakeroot. Do not `cp -a` a host tree into the
+  package. Files owned by the BitBake uid outside `/home` fail the
+  `host-user-contaminated` QA check.
+- `externalsrc` skips `do_patch`. The container must mount that source
+  tree. The recipe `SRCREV` is what a normal build fetches.
+- Machine files set `SHORT_OV_MACHINE`. Cubieboard 2 boards include
+  `ov-cubieboard2.inc`.
+- Distro policy is `conf/distro/ovlinux.conf`. Packages are ipk.
+- After a recipe commit on `scarthgap`, the parent repository updates
+  the `meta-openvario` gitlink in its own commit.
