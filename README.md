@@ -96,6 +96,35 @@ version=${version#OV-}
 zcat tmp/deploy/images/${MACHINE}/OV-${version}.img.gz | sudo dd of=/dev/sdX bs=16M conv=fsync status=progress
 ```
 
+### USB recovery stick
+
+**NOTE:** This only works if OpenVario is already installed on the SD card.
+
+Build the recovery image:
+
+```bash
+bitbake openvario-recovery-image
+```
+
+Copy the recovery image and the disk image onto a fat formatted usb stick. U-Boot loads `openvario/ov-recovery.itb` from that stick:
+
+```bash
+image=$(ls tmp/deploy/images/${MACHINE}/OV-*.img.gz | grep -v testing)
+version=$(basename "$image" .img.gz)
+version=${version#OV-}
+sudo mkdir -p /mnt/usbstick
+sudo mount /dev/sda1 /mnt/usbstick
+sudo mkdir -p /mnt/usbstick/openvario/images
+sudo cp tmp/deploy/images/${MACHINE}/ov-recovery.itb /mnt/usbstick/openvario/
+sudo cp tmp/deploy/images/${MACHINE}/OV-${version}.img.gz /mnt/usbstick/openvario/images/
+printf 'IMAGEFILE=%s\nUPGRADE_TYPE=1\n' "OV-${version}.img.gz" | sudo tee /mnt/usbstick/openvario/upgrade.cfg >/dev/null
+sudo umount /mnt/usbstick
+```
+
+Reboot your openvario with the usbstick attached.
+
+Recovery renames `upgrade.cfg` to `_upgrade.cfg` after the write, so the stick does not install again.
+
 ### Build errors, development branches and upstream dependency changes
 
 We are currently working on updating the commit references used for the stable OpenVario releases to ensure reproducible builds and long‑term maintainability.
