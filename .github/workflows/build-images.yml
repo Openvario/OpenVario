@@ -1,0 +1,138 @@
+# Build the shipping OpenVario disk images for a release tag.
+#
+# One self-hosted runner, labelled "self-hosted" and "openvario", with
+# Docker and a large disk. GitHub-hosted runners are too small.
+#
+# The board list and the BitBake commands are in
+# .github/scripts/build-release-images.sh. Boards that share a CPU are
+# built in one directory there. Downloads and sstate stay on the runner
+# (see OV_CACHE below). tmp/ is deleted with the job.
+#
+# ov-rpi4 and ov-rpi4-64 are development boards and are not built.
+
+name: Release images
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openvario-images-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  OV_IMAGE: ghcr.io/openvario/ovbuild-container:latest
+  # Outside the workspace, so a later tag can reuse it.
+  OV_CACHE: ${{ github.workspace }}/../../openvario-cache
+
+jobs:
+  release:
+    name: Create release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          tag="${GITHUB_REF_NAME}"
+          pre=false
+          case "$tag" in
+            *PRE*|*pre*|*rc*|*RC*) pre=true ;;
+          esac
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists"
+            exit 0
+          fi
+          if [ "$pre" = true ]; then
+            gh release create "$tag" \
+              --target "$GITHUB_SHA" \
+              --title "OpenVario $tag" \
+              --prerelease \
+              --notes "Disk images built from this tag."
+          else
+            gh release create "$tag" \
+              --target "$GITHUB_SHA" \
+              --title "OpenVario $tag" \
+              --notes "Disk images built from this tag."
+          fi
+
+  build:
+    name: Build images
+    needs: release
+    if: >-
+      always() &&
+      (needs.release.result == 'success' || needs.release.result == 'skipped')
+    runs-on: [self-hosted, openvario]
+    timeout-minutes: 1440
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Pull the build container
+        run: docker pull "$OV_IMAGE"
+
+      - name: Prepare the shared cache
+        run: |
+          set -eu
+          mkdir -p "$OV_CACHE/downloads" "$OV_CACHE/sstate-cache"
+          df -h "$OV_CACHE"
+
+      - name: Build the images
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/workdir \
+            -v "$OV_CACHE/downloads":/workdir/downloads \
+            -v "$OV_CACHE/sstate-cache":/workdir/sstate-cache \
+            "$OV_IMAGE" \
+            --workdir=/workdir \
+            bash /workdir/.github/scripts/build-release-images.sh
+
+      - name: Collect images
+        if: always() && !cancelled()
+        run: bash .github/scripts/collect-release-images.sh
+
+      - name: Upload release assets
+        if: >-
+          always() && !cancelled() &&
+          github.event_name == 'push' &&
+          startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          shopt -s nullglob
+          files=(images/*/*)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No images to upload"
+            exit 0
+          fi
+          gh release upload "${GITHUB_REF_NAME}" "${files[@]}" --clobber
+
+      - name: Upload workflow artifact
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openvario-images
+          path: images/
+          if-no-files-found: error
+          retention-days: 14
