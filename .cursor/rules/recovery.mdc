@@ -1,0 +1,39 @@
+---
+description: USB recovery image layout and upgrade.cfg
+globs: meta-openvario/recipes-apps/ovmenu-recovery/**,meta-openvario/recipes-apps/ovmenu-ng-skripts/**,meta-openvario/recipes-core/images/openvario-recovery*,meta-openvario/recipes-bsp/u-boot/**
+alwaysApply: false
+---
+
+# Recovery stick
+
+U-Boot on a card that already runs OpenVario loads
+`openvario/ov-recovery.itb` from the first FAT partition of the USB
+stick. A blank card never looks at USB. The boot ROM only starts the
+loader on the SD card.
+
+Build the ramdisk with `bitbake openvario-recovery-image`. The file is
+`tmp/deploy/images/${MACHINE}/ov-recovery.itb`.
+
+The stick layout recovery reads is:
+
+```text
+openvario/ov-recovery.itb
+openvario/images/OV-<version>.img.gz
+openvario/upgrade.cfg
+```
+
+`upgrade.cfg` is sourced by the shell. A hand-written file needs:
+
+```text
+IMAGEFILE=OV-<version>.img.gz
+UPGRADE_TYPE=1
+```
+
+`IMAGEFILE` is the file name only. Recovery looks it up under
+`openvario/images/`. `UPGRADE_TYPE=1` is current firmware to current
+firmware and expects partition 3 on the card. After a successful write,
+recovery renames `upgrade.cfg` to `_upgrade.cfg`.
+
+The in-system updater also stores brightness, rotation, and service
+enablement in that file. Those lines are optional for a stick prepared
+by hand.

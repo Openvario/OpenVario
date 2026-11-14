@@ -1,0 +1,27 @@
+---
+description: Where OpenVario changes belong in the image repository
+alwaysApply: true
+---
+
+# OpenVario layout
+
+This checkout builds a Yocto image. It is not the flight-computer
+application.
+
+- Product recipes, machines, and image contents: `meta-openvario/`.
+  That directory is its own git repository. A commit there does not
+  update this repo until the gitlink commit changes.
+- `bitbake/`, `openembedded-core/`, `meta-openembedded/`, `meta-arm/`,
+  `meta-sunxi/`, `meta-raspberrypi/`, and `meta-rauc/` are upstream
+  pins. Fix an OpenVario issue with a `.bbappend` in `meta-openvario`,
+  not by editing those trees.
+- Layer branch is `scarthgap` (`LAYERSERIES_COMPAT` includes it).
+  This repository's branch is `main`.
+- Generated build state stays untracked: `conf/`, `tmp/`, `downloads/`,
+  `sstate-cache/`, `cache/`, `build/`. See `.gitignore`.
+- Starting config is `meta-openvario/conf/templates/default/`.
+  `local.conf.sample` selects `DISTRO ?= "ovlinux"` and
+  `PACKAGE_CLASSES ?= "package_ipk"`.
+- Machines are `meta-openvario/conf/machine/ov-*.conf`. `README.md`
+  lists the boards pilots build. `SHORT_OV_MACHINE` becomes part of
+  the image file name.

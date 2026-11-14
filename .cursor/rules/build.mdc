@@ -1,0 +1,38 @@
+---
+description: How to build an OpenVario image in the Docker container
+alwaysApply: true
+---
+
+# Building an image
+
+Build with the image in `README.md`:
+
+```bash
+docker run -it --rm -v "$(pwd)":/workdir \
+  ghcr.io/openvario/ovbuild-container:latest --workdir=/workdir
+```
+
+Inside the container, BitBake is not on `PATH` until the environment
+script runs:
+
+```bash
+source openembedded-core/oe-init-build-env .
+export MACHINE=ov-cb2-ch57
+bitbake openvario-image
+```
+
+- `MACHINE` must be an `ov-*` machine from `conf/machine/`. The sample
+  default is `ov-cb2-pq70`. Export the board you mean.
+- Common targets: `openvario-image`, `openvario-image-testing`,
+  `openvario-recovery-image`.
+- The container user is the owner of `/workdir`. Do not run BitBake as
+  root, and do not `docker exec` as root to create files the build
+  writes.
+- Output is `tmp/deploy/images/${MACHINE}/`. The disk image is
+  `OV-<version>.img.gz`. It is the whole card, including the bootloader.
+- `tmp/` is tens of gigabytes. Do not point `TMPDIR` at `/tmp`.
+- Keep `downloads/` and `sstate-cache/` across rebuilds. They are safe
+  to delete only when you mean to fetch and compile again.
+- A non-interactive run drops `-it` and passes the shell command after
+  the image name. `oe-init-build-env` must still be sourced in that
+  shell.

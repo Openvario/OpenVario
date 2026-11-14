@@ -1,0 +1,20 @@
+---
+description: How to edit the OpenVario build README
+globs: README.md
+alwaysApply: false
+---
+
+# README
+
+`README.md` is the build guide. Keep new steps in the same short form
+as the sections around them.
+
+- Command blocks use a `bash` fence.
+- Name the machine with `${MACHINE}` and take the image version from
+  the built file name. Do not invent a second version string.
+- `dd` writes the whole disk (`/dev/sdX`), not a partition. Tell the
+  reader to unmount the card first. The image includes the bootloader.
+- USB recovery files go under `openvario/` on the stick. Say that this
+  path only works when OpenVario is already installed on the card.
+- Point recipe bugs at Openvario/meta-openvario. This README is not the
+  issue tracker.
