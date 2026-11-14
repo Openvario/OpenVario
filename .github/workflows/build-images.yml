@@ -1,0 +1,194 @@
+# Build every shipping OpenVario disk image when a release tag is pushed.
+#
+# A cold image is tens of gigabytes of tmp/ plus a multi-hour compile, so
+# this does not run on a GitHub-hosted runner. Register a self-hosted
+# runner with the labels "self-hosted" and "openvario", Docker, and a
+# disk that can hold the shared download/sstate cache (hundreds of GB).
+#
+# Downloads and sstate stay on that machine, next to the runner work
+# directory, and are reused by later tags. tmp/ stays in the job
+# workspace and is deleted with it.
+#
+# Cubieboard images also build ov-recovery.itb. That ITB is the U-Boot
+# recovery payload (uImage + initramfs). Raspberry Pi machines publish
+# the disk image only. ov-rpi4 and ov-rpi4-64 are development boards and
+# are not part of a release.
+
+name: Release images
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openvario-images-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  OV_IMAGE: ghcr.io/openvario/ovbuild-container:latest
+  # Shared by every machine job. Lives outside the workspace.
+  OV_CACHE: ${{ github.workspace }}/../../openvario-cache
+
+jobs:
+  release:
+    name: Create release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          tag="${GITHUB_REF_NAME}"
+          pre=false
+          case "$tag" in
+            *PRE*|*pre*|*rc*|*RC*) pre=true ;;
+          esac
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists"
+            exit 0
+          fi
+          args=(--target "$GITHUB_SHA" --title "OpenVario $tag"
+                --notes "Disk images built from this tag.")
+          if [ "$pre" = true ]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$tag" "${args[@]}"
+
+  build:
+    name: ${{ matrix.machine }}
+    needs: release
+    if: >-
+      always() &&
+      (needs.release.result == 'success' || needs.release.result == 'skipped')
+    runs-on: [self-hosted, openvario]
+    timeout-minutes: 1440
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - machine: ov-cb2-am43
+            targets: openvario-image openvario-recovery-image
+          - machine: ov-cb2-ch57
+            targets: openvario-image openvario-recovery-image
+          - machine: ov-cb2-ch70
+            targets: openvario-image openvario-recovery-image
+          - machine: ov-cb2-pq70
+            targets: openvario-image openvario-recovery-image
+          - machine: ov-cb2-am70s
+            targets: openvario-image openvario-recovery-image
+          - machine: ov-cb2-ch57s
+            targets: openvario-image openvario-recovery-image
+          - machine: ov-cb2-ch70s
+            targets: openvario-image openvario-recovery-image
+          - machine: ov-cm4-ch57
+            targets: openvario-image
+          - machine: ov-cm4-pq70
+            targets: openvario-image
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Pull the build container
+        run: docker pull "$OV_IMAGE"
+
+      - name: Prepare the shared cache
+        run: |
+          set -eu
+          mkdir -p "$OV_CACHE/downloads" "$OV_CACHE/sstate-cache"
+          df -h "$OV_CACHE"
+
+      - name: BitBake ${{ matrix.machine }}
+        env:
+          MACHINE: ${{ matrix.machine }}
+          TARGETS: ${{ matrix.targets }}
+        run: |
+          set -eu
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/workdir \
+            -v "$OV_CACHE/downloads":/workdir/downloads \
+            -v "$OV_CACHE/sstate-cache":/workdir/sstate-cache \
+            -e MACHINE -e TARGETS \
+            "$OV_IMAGE" \
+            --workdir=/workdir \
+            bash -lc '
+              set -eu
+              git config --global --add safe.directory /workdir
+              git config --global --add safe.directory /workdir/meta-openvario
+              export TEMPLATECONF=/workdir/meta-openvario/conf/templates/default
+              set +u
+              . openembedded-core/oe-init-build-env /workdir
+              set -u
+              export MACHINE
+              bitbake $TARGETS
+            '
+
+      - name: Collect images
+        env:
+          MACHINE: ${{ matrix.machine }}
+        run: |
+          set -eu
+          stage="images/${MACHINE}"
+          mkdir -p "$stage"
+          deploy="tmp/deploy/images/${MACHINE}"
+          find "$deploy" -maxdepth 1 -type f \
+            \( -name 'OV-*.img.gz' -o -name 'OV-*.ov-rpi-sdimg' \
+               -o -name 'ov-recovery.itb' \) -print
+          find "$deploy" -maxdepth 1 -type f -name 'OV-*.img.gz' \
+            -exec cp -a {} "$stage/" \;
+          find "$deploy" -maxdepth 1 -type f -name 'OV-*.ov-rpi-sdimg' \
+            -exec cp -a {} "$stage/" \;
+          if [ -f "$deploy/ov-recovery.itb" ]; then
+            cp -a "$deploy/ov-recovery.itb" \
+              "$stage/ov-recovery-${MACHINE}.itb"
+          fi
+          find "$stage" -type f -size 0 -print -quit | grep -q . && {
+            echo "Collected an empty image"
+            exit 1
+          }
+          find "$stage" -type f | grep -q . || {
+            echo "No image was produced in $deploy"
+            exit 1
+          }
+          ls -lh "$stage"
+
+      - name: Upload release assets
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MACHINE: ${{ matrix.machine }}
+        run: |
+          set -eu
+          shopt -s nullglob
+          files=(images/${MACHINE}/*)
+          [ "${#files[@]}" -gt 0 ]
+          gh release upload "${GITHUB_REF_NAME}" "${files[@]}" --clobber
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.machine }}
+          path: images/${{ matrix.machine }}/
+          if-no-files-found: error
+          retention-days: 14
