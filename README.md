@@ -19,7 +19,7 @@ As this repository just represents the build system of the image, the issue repo
 
 ### Fetching sources
 
-```
+```bash
 git clone --recurse-submodules https://github.com/Openvario/OpenVario.git
 cd OpenVario
 ```
@@ -28,19 +28,19 @@ This will fetch the sources including all submodules.
 
 ### Starting the containerd build environment
 
-```
+```bash
 docker run -it --rm -v $(pwd):/workdir ghcr.io/openvario/ovbuild-container:latest --workdir=/workdir
 ```
 
 ### Configuring the build inside the docker container (only necessary once after fetching the repos)
 
-```
+```bash
 source openembedded-core/oe-init-build-env .
 ```
 
 ### Setting the machine
 
-```
+```bash
 export MACHINE=ov-cb2-ch70
 ```
 
@@ -72,7 +72,7 @@ export MACHINE=ov-cb2-ch70
 
 ### Starting the build
 
-```
+```bash
 bitbake openvario-image
 ```
 
