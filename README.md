@@ -14,9 +14,9 @@ As this repository just represents the build system of the image, the issue repo
 
 ### Prerequisites
 
- - Linux installation 
- - Installed Docker (https://docs.docker.com/install/)
- 
+- Linux installation
+- Installed Docker (<https://docs.docker.com/install/>)
+
 ### Fetching sources
 
 ```
@@ -27,6 +27,7 @@ cd OpenVario
 This will fetch the sources including all submodules.
 
 ### Starting the containerd build environment
+
 ```
 docker run -it --rm -v $(pwd):/workdir ghcr.io/openvario/ovbuild-container:latest --workdir=/workdir
 ```
@@ -43,9 +44,8 @@ source openembedded-core/oe-init-build-env .
 export MACHINE=ov-cb2-ch70
 ```
 
-### Available machines for the OpenVario 
-    
-    
+### Available machines for the OpenVario
+
     Cubieboard 2 and the original adapter board
     ===========================================
 
@@ -76,7 +76,28 @@ export MACHINE=ov-cb2-ch70
 bitbake openvario-image
 ```
 
+### Writing the image to an SD card
+
+The image is a file in `tmp/deploy/images/<machine>/OV-*.img.gz`. It is a whole-disk image and includes the bootloader.
+
+Ensure its not auto mounted by your os:
+
+```bash
+sudo umount /dev/sdX*
+```
+
+Then write the image to the card with the below commands:
+
+```bash
+ls tmp/deploy/images/${MACHINE}/OV-*.img.gz
+image=$(ls tmp/deploy/images/${MACHINE}/OV-*.img.gz | grep -v testing)
+version=$(basename "$image" .img.gz)
+version=${version#OV-}
+zcat tmp/deploy/images/${MACHINE}/OV-${version}.img.gz | sudo dd of=/dev/sdX bs=16M conv=fsync status=progress
+```
+
 ### Build errors, development branches and upstream dependency changes
+
 We are currently working on updating the commit references used for the stable OpenVario releases to ensure reproducible builds and long‑term maintainability.
 
 For development purposes, please use the `scarthgap` branch of meta-openvario, as it contains the most up‑to‑date fixes and improvements.
