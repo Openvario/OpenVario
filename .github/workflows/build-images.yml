@@ -1,23 +1,14 @@
-# Build every shipping OpenVario disk image when a release tag is pushed.
+# Build the shipping OpenVario disk images for a release tag.
 #
-# A cold image is tens of gigabytes of tmp/ plus a multi-hour compile, so
-# this does not run on a GitHub-hosted runner. Register one self-hosted
-# runner with the labels "self-hosted" and "openvario", Docker, and a
-# disk that can hold the shared download/sstate cache (hundreds of GB).
+# One self-hosted runner, labelled "self-hosted" and "openvario", with
+# Docker and a large disk. GitHub-hosted runners are too small.
 #
-# There is one runner, so this is one job. Boards that share a CPU are
-# built in one BitBake directory: the first board compiles the world,
-# and the next boards reuse it and only rebuild what the display and
-# the board change (kernel, U-Boot, image). A second directory is used
-# for the other CPU.
+# The board list and the BitBake commands are in
+# .github/scripts/build-release-images.sh. Boards that share a CPU are
+# built in one directory there. Downloads and sstate stay on the runner
+# (see OV_CACHE below). tmp/ is deleted with the job.
 #
-# Downloads and sstate stay on that machine and are reused by later
-# tags. tmp/ stays in the job workspace and is deleted with it.
-#
-# Cubieboard images also build ov-recovery.itb. That ITB is the U-Boot
-# recovery payload. The CM4 boards publish the disk image only.
-# ov-rpi4 and ov-rpi4-64 are development boards and are not part of a
-# release.
+# ov-rpi4 and ov-rpi4-64 are development boards and are not built.
 
 name: Release images
 
@@ -36,7 +27,7 @@ concurrency:
 
 env:
   OV_IMAGE: ghcr.io/openvario/ovbuild-container:latest
-  # Shared by later tags. Lives outside the workspace.
+  # Outside the workspace, so a later tag can reuse it.
   OV_CACHE: ${{ github.workspace }}/../../openvario-cache
 
 jobs:
@@ -66,12 +57,18 @@ jobs:
             echo "Release $tag already exists"
             exit 0
           fi
-          args=(--target "$GITHUB_SHA" --title "OpenVario $tag"
-                --notes "Disk images built from this tag.")
           if [ "$pre" = true ]; then
-            args+=(--prerelease)
+            gh release create "$tag" \
+              --target "$GITHUB_SHA" \
+              --title "OpenVario $tag" \
+              --prerelease \
+              --notes "Disk images built from this tag."
+          else
+            gh release create "$tag" \
+              --target "$GITHUB_SHA" \
+              --title "OpenVario $tag" \
+              --notes "Disk images built from this tag."
           fi
-          gh release create "$tag" "${args[@]}"
 
   build:
     name: Build images
@@ -100,89 +97,19 @@ jobs:
           mkdir -p "$OV_CACHE/downloads" "$OV_CACHE/sstate-cache"
           df -h "$OV_CACHE"
 
-      - name: BitBake each architecture
+      - name: Build the images
         run: |
-          set -eu
           docker run --rm \
             -v "$GITHUB_WORKSPACE":/workdir \
             -v "$OV_CACHE/downloads":/workdir/downloads \
             -v "$OV_CACHE/sstate-cache":/workdir/sstate-cache \
             "$OV_IMAGE" \
             --workdir=/workdir \
-            bash -lc '
-              set -eu
-              cd /workdir
-              git config --global --add safe.directory /workdir
-              git config --global --add safe.directory /workdir/meta-openvario
-
-              # One build directory per CPU. Boards in a group differ by
-              # the display and the adapter, so they stay in that directory.
-              bake() {
-                builddir=$1
-                targets=$2
-                shift 2
-                cd /workdir
-                unset BUILDDIR
-                export TEMPLATECONF=/workdir/meta-openvario/conf/templates/default
-                set +u
-                . openembedded-core/oe-init-build-env "$builddir"
-                set -u
-                conf=$builddir/conf/local.conf
-                grep -q "^DL_DIR " "$conf" || printf "%s\n" \
-                  "DL_DIR = \"/workdir/downloads\"" \
-                  "SSTATE_DIR = \"/workdir/sstate-cache\"" >>"$conf"
-                failed=0
-                for machine in "$@"; do
-                  echo "=== $builddir $machine ($targets) ==="
-                  MACHINE=$machine bitbake $targets || failed=1
-                done
-                return $failed
-              }
-
-              status=0
-              bake /workdir/build-cubie \
-                "openvario-image openvario-recovery-image" \
-                ov-cb2-am43 ov-cb2-ch57 ov-cb2-ch70 ov-cb2-pq70 \
-                ov-cb2-am70s ov-cb2-ch57s ov-cb2-ch70s \
-                || status=1
-              bake /workdir/build-cm4 \
-                "openvario-image" \
-                ov-cm4-ch57 ov-cm4-pq70 \
-                || status=1
-              exit $status
-            '
+            bash /workdir/.github/scripts/build-release-images.sh
 
       - name: Collect images
         if: always() && !cancelled()
-        run: |
-          set -eu
-          mkdir -p images
-          found=0
-          for deploy in build-cubie/tmp/deploy/images build-cm4/tmp/deploy/images; do
-            [ -d "$deploy" ] || continue
-            for machine_dir in "$deploy"/ov-*; do
-              [ -d "$machine_dir" ] || continue
-              machine=$(basename "$machine_dir")
-              stage="images/${machine}"
-              mkdir -p "$stage"
-              find "$machine_dir" -maxdepth 1 -type f -name 'OV-*.img.gz' \
-                -exec cp -a {} "$stage/" \;
-              find "$machine_dir" -maxdepth 1 -type f -name 'OV-*.ov-rpi-sdimg' \
-                -exec cp -a {} "$stage/" \;
-              if [ -f "$machine_dir/ov-recovery.itb" ]; then
-                cp -a "$machine_dir/ov-recovery.itb" \
-                  "$stage/ov-recovery-${machine}.itb"
-              fi
-              if find "$stage" -type f | grep -q .; then
-                found=1
-                ls -lh "$stage"
-              else
-                echo "No image in $machine_dir"
-                rmdir "$stage" || true
-              fi
-            done
-          done
-          [ "$found" = 1 ]
+        run: bash .github/scripts/collect-release-images.sh
 
       - name: Upload release assets
         if: >-
